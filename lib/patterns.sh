@@ -72,7 +72,7 @@ check_blocked_command() {
         if echo "$cmd" | grep -qEi -- "$fp_pattern"; then
             for branch in "${PROTECTED_BRANCHES[@]}"; do
                 if echo "$cmd" | grep -qEi "(^|[^a-zA-Z0-9])$branch([^a-zA-Z0-9]|$)"; then
-                    echo "force_push|$fp_pattern|Blocked force push to protected branch: $branch"
+                    echo "force_push|force_push_${branch}|Blocked force push to protected branch: $branch"
                     return 0
                 fi
             done
