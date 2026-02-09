@@ -1,0 +1,24 @@
+{
+  "name": "claude-shield",
+  "version": "1.0.0",
+  "description": "Security & protection hooks for Claude Code. Blocks destructive commands, protects sensitive files, prevents force-push to main/master, and maintains a full audit trail of all tool use.",
+  "author": {
+    "name": "Jarrad Bermingham",
+    "url": "https://github.com/bifrost-mcp"
+  },
+  "homepage": "https://github.com/bifrost-mcp/claude-shield",
+  "repository": "https://github.com/bifrost-mcp/claude-shield",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "protection",
+    "audit",
+    "hooks",
+    "destructive-commands",
+    "file-protection",
+    "force-push",
+    "claude-code"
+  ],
+  "hooks": "./hooks/hooks.json",
+  "commands": "./commands/"
+}
