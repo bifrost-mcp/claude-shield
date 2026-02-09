@@ -40,9 +40,9 @@ Intercepts every tool call before execution. If a destructive command or protect
 | `git reset --hard` | `git reset --hard HEAD~3` |
 | `git clean -f` | `git clean -fd` |
 | `chmod 777` | `chmod 777 /etc/passwd` |
-| `--force` | `npm install --force` |
-| `--no-verify` | `git commit --no-verify` |
-| `git push --force` to main | `git push --force origin main` |
+| `rm -r -f` (separate flags) | `rm -r -f /important` |
+| `git commit --no-verify` | `git commit --no-verify -m 'msg'` |
+| `git push --force` to main/master | `git push --force origin main` |
 
 **Protected files include:**
 `.env`, `.env.*`, `credentials.*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519`, `.npmrc`, `.pypirc`, `secrets.*`, `*.keystore`
@@ -106,11 +106,11 @@ All data is stored locally in `~/.claude-shield/`:
 
 ## Requirements
 
-- `bash` 4+
-- `jq`
-- `sqlite3`
+- `bash` 3.2+ (ships with macOS)
+- `jq` (install: `brew install jq` on macOS, `apt install jq` on Linux)
+- `sqlite3` (pre-installed on macOS and most Linux distributions)
 
-All are pre-installed on macOS and most Linux distributions.
+If `jq` or `sqlite3` are missing, Claude Shield will silently disable itself rather than break Claude Code.
 
 ## Tests
 
@@ -120,7 +120,7 @@ npm test
 bash tests/run.sh
 ```
 
-70 tests covering pattern matching, DB operations, hook I/O, config toggles, custom patterns, and edge cases.
+79 tests covering pattern matching, DB operations, hook I/O, config toggles, custom patterns, SQL injection prevention, and edge cases.
 
 ## License
 

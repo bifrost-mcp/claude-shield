@@ -91,9 +91,29 @@ assert_contains "git push --force main blocked" "force_push" "$RESULT"
 RESULT=$(check_blocked_command "git commit --no-verify -m 'skip'" || true)
 assert_contains "--no-verify blocked" "destructive_command" "$RESULT"
 
-# Test 6b: --force on non-git command blocked as destructive
-RESULT=$(check_blocked_command "npm install --force" || true)
-assert_contains "--force on non-git blocked" "destructive_command" "$RESULT"
+# Test 6b: rm -r -f (separate flags) blocked
+RESULT=$(check_blocked_command "rm -r -f /important" || true)
+assert_contains "rm -r -f blocked" "destructive_command" "$RESULT"
+
+# Test 6c: rm -f -r (reverse separate flags) blocked
+RESULT=$(check_blocked_command "rm -f -r /data" || true)
+assert_contains "rm -f -r blocked" "destructive_command" "$RESULT"
+
+# Test 6d: brew install --force NOT blocked (not git)
+RESULT=$(check_blocked_command "brew install --force some-package") || true
+assert_empty "brew install --force allowed" "$RESULT"
+
+# Test 6e: npm install --force NOT blocked
+RESULT=$(check_blocked_command "npm install --force") || true
+assert_empty "npm install --force allowed" "$RESULT"
+
+# Test 6f: git push --force to feature branch ALLOWED
+RESULT=$(check_blocked_command "git push --force origin feature-branch") || true
+assert_empty "force push to feature branch allowed" "$RESULT"
+
+# Test 6g: git push --force to master blocked
+RESULT=$(check_blocked_command "git push --force origin master" || true)
+assert_contains "force push to master blocked" "force_push" "$RESULT"
 
 # Test 7: chmod 777 blocked
 RESULT=$(check_blocked_command "chmod 777 /etc/passwd" || true)
@@ -434,6 +454,36 @@ assert_contains "Custom npm publish blocked" "custom_command" "$RESULT"
 # Test 60: Custom protected file
 RESULT=$(check_protected_file "/app/database.secret" || true)
 assert_contains "Custom .secret blocked" "custom_file" "$RESULT"
+
+# Test 60b: Custom protected branches from config
+cat > "$SHIELD_CONFIG" << 'CONF'
+{
+    "enabled": true,
+    "block_destructive_commands": true,
+    "block_protected_files": true,
+    "block_force_push": true,
+    "audit_logging": true,
+    "audit_retention_days": 30,
+    "blocked_commands": [],
+    "protected_files": [],
+    "protected_branches": ["main", "master", "production"]
+}
+CONF
+
+RESULT=$(check_blocked_command "git push --force origin production" || true)
+assert_contains "Custom branch production blocked" "force_push" "$RESULT"
+
+# Test 60c: Non-custom branch still allowed
+RESULT=$(check_blocked_command "git push --force origin staging") || true
+assert_empty "Non-protected staging allowed" "$RESULT"
+
+# Test 60d: _sanitize_int rejects injection
+RESULT=$(_sanitize_int "10; DROP TABLE audit_log" "5")
+assert_eq "Sanitize int rejects injection" "5" "$RESULT"
+
+# Test 60e: _sanitize_int accepts valid int
+RESULT=$(_sanitize_int "25" "5")
+assert_eq "Sanitize int accepts valid" "25" "$RESULT"
 
 echo ""
 

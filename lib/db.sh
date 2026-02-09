@@ -5,6 +5,20 @@ SHIELD_DIR="${CLAUDE_SHIELD_DIR:-$HOME/.claude-shield}"
 SHIELD_DB="$SHIELD_DIR/audit.db"
 SHIELD_CONFIG="$SHIELD_DIR/config.json"
 
+# Check required dependencies
+check_deps() {
+    local missing=()
+    command -v jq >/dev/null 2>&1 || missing+=("jq")
+    command -v sqlite3 >/dev/null 2>&1 || missing+=("sqlite3")
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Claude Shield requires: ${missing[*]}. Install them and try again." >&2
+        exit 0  # exit 0 so we don't break Claude Code — just silently disable
+    fi
+}
+
+# Run dep check once when sourced
+check_deps
+
 # Ensure database exists and is initialized
 ensure_db() {
     if [ ! -f "$SHIELD_DB" ]; then
@@ -47,18 +61,29 @@ config_get() {
     echo "${val:-$default}"
 }
 
+# Sanitize a numeric value (integers only, default if invalid)
+_sanitize_int() {
+    local val="$1"
+    local default="$2"
+    if [[ "$val" =~ ^[0-9]+$ ]]; then
+        echo "$val"
+    else
+        echo "$default"
+    fi
+}
+
 # Insert a blocked attempt record
 # Usage: db_insert_blocked SESSION_ID TOOL_NAME COMMAND FILE_PATH RULE_TYPE RULE_PATTERN REASON
 db_insert_blocked() {
     ensure_db
     local session_id tool_name command file_path rule_type rule_pattern reason
-    session_id=$(echo "${1:-}" | sed "s/'/''/g")
-    tool_name=$(echo "${2:-}" | sed "s/'/''/g")
-    command=$(echo "${3:-}" | sed "s/'/''/g")
-    file_path=$(echo "${4:-}" | sed "s/'/''/g")
-    rule_type=$(echo "${5:-}" | sed "s/'/''/g")
-    rule_pattern=$(echo "${6:-}" | sed "s/'/''/g")
-    reason=$(echo "${7:-}" | sed "s/'/''/g")
+    session_id=$(printf '%s' "${1:-}" | sed "s/'/''/g")
+    tool_name=$(printf '%s' "${2:-}" | sed "s/'/''/g")
+    command=$(printf '%s' "${3:-}" | sed "s/'/''/g")
+    file_path=$(printf '%s' "${4:-}" | sed "s/'/''/g")
+    rule_type=$(printf '%s' "${5:-}" | sed "s/'/''/g")
+    rule_pattern=$(printf '%s' "${6:-}" | sed "s/'/''/g")
+    reason=$(printf '%s' "${7:-}" | sed "s/'/''/g")
     sqlite3 "$SHIELD_DB" "INSERT INTO blocked_attempts (session_id, tool_name, command, file_path, rule_type, rule_pattern, reason) VALUES ('$session_id', '$tool_name', '$command', '$file_path', '$rule_type', '$rule_pattern', '$reason');"
 }
 
@@ -67,12 +92,12 @@ db_insert_blocked() {
 db_insert_audit() {
     ensure_db
     local session_id tool_name action file_path command details
-    session_id=$(echo "${1:-}" | sed "s/'/''/g")
-    tool_name=$(echo "${2:-}" | sed "s/'/''/g")
-    action=$(echo "${3:-}" | sed "s/'/''/g")
-    file_path=$(echo "${4:-}" | sed "s/'/''/g")
-    command=$(echo "${5:-}" | sed "s/'/''/g")
-    details=$(echo "${6:-}" | sed "s/'/''/g")
+    session_id=$(printf '%s' "${1:-}" | sed "s/'/''/g")
+    tool_name=$(printf '%s' "${2:-}" | sed "s/'/''/g")
+    action=$(printf '%s' "${3:-}" | sed "s/'/''/g")
+    file_path=$(printf '%s' "${4:-}" | sed "s/'/''/g")
+    command=$(printf '%s' "${5:-}" | sed "s/'/''/g")
+    details=$(printf '%s' "${6:-}" | sed "s/'/''/g")
     sqlite3 "$SHIELD_DB" "INSERT INTO audit_log (session_id, tool_name, action, file_path, command, details) VALUES ('$session_id', '$tool_name', '$action', '$file_path', '$command', '$details');"
 }
 
@@ -85,7 +110,7 @@ db_blocked_today() {
 # Get count of blocked attempts for a session
 db_blocked_session() {
     local session_id
-    session_id=$(echo "${1:-}" | sed "s/'/''/g")
+    session_id=$(printf '%s' "${1:-}" | sed "s/'/''/g")
     ensure_db
     sqlite3 "$SHIELD_DB" "SELECT COUNT(*) FROM blocked_attempts WHERE session_id = '$session_id';"
 }
@@ -93,7 +118,8 @@ db_blocked_session() {
 # Get recent blocked attempts
 # Usage: db_recent_blocked [LIMIT]
 db_recent_blocked() {
-    local limit="${1:-10}"
+    local limit
+    limit=$(_sanitize_int "${1:-10}" "10")
     ensure_db
     sqlite3 -separator '|' "$SHIELD_DB" "
         SELECT timestamp, tool_name, rule_type, rule_pattern, reason
@@ -106,7 +132,8 @@ db_recent_blocked() {
 # Get audit log entries
 # Usage: db_recent_audit [LIMIT]
 db_recent_audit() {
-    local limit="${1:-20}"
+    local limit
+    limit=$(_sanitize_int "${1:-20}" "20")
     ensure_db
     sqlite3 -separator '|' "$SHIELD_DB" "
         SELECT timestamp, tool_name, action, file_path, command
@@ -135,7 +162,8 @@ db_blocked_by_type() {
 
 # Purge old audit entries beyond retention period
 db_purge_old() {
-    local days="${1:-30}"
+    local days
+    days=$(_sanitize_int "${1:-30}" "30")
     ensure_db
     sqlite3 "$SHIELD_DB" "DELETE FROM audit_log WHERE timestamp < datetime('now', '-$days days');"
     sqlite3 "$SHIELD_DB" "DELETE FROM blocked_attempts WHERE timestamp < datetime('now', '-$days days');"
@@ -144,7 +172,7 @@ db_purge_old() {
 # Get session audit summary
 db_session_audit_summary() {
     local session_id
-    session_id=$(echo "${1:-}" | sed "s/'/''/g")
+    session_id=$(printf '%s' "${1:-}" | sed "s/'/''/g")
     ensure_db
     sqlite3 -separator '|' "$SHIELD_DB" "
         SELECT tool_name, action, COUNT(*) as count

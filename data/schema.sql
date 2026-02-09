@@ -24,11 +24,6 @@ CREATE TABLE IF NOT EXISTS audit_log (
     details TEXT
 );
 
-CREATE TABLE IF NOT EXISTS config (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
 -- Indexes for fast lookups
 CREATE INDEX IF NOT EXISTS idx_blocked_timestamp ON blocked_attempts(timestamp);
 CREATE INDEX IF NOT EXISTS idx_blocked_session ON blocked_attempts(session_id);
