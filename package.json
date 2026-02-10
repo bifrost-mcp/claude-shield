@@ -1,6 +1,6 @@
 {
   "name": "claude-shield",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Security & protection hooks for Claude Code — blocks destructive commands, protects sensitive files, audit trail",
   "keywords": [
     "claude-code",

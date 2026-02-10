@@ -1,10 +1,13 @@
 # Claude Shield
 
-Security & protection hooks for Claude Code. Blocks destructive commands, protects sensitive files, prevents force-push to main/master, and maintains a full audit trail of all tool use.
+[![npm version](https://img.shields.io/npm/v/claude-shield)](https://www.npmjs.com/package/claude-shield)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**Security & protection hooks for Claude Code.** Blocks destructive commands, protects sensitive files, prevents force-push to main/master, and maintains a full audit trail of all tool use.
 
 ## What It Does
 
-Claude Shield adds a security layer to Claude Code through hooks:
+Claude Shield adds a security layer to Claude Code through [hooks](https://docs.anthropic.com/en/docs/claude-code/hooks):
 
 - **Blocks destructive bash commands** — `rm -rf`, `DROP TABLE`, `git reset --hard`, `chmod 777`, `--force`, `--no-verify`, and more
 - **Protects sensitive files** — Prevents writes to `.env`, `*.pem`, `*.key`, `id_rsa`, `credentials.*`, `.npmrc`, and more
@@ -14,16 +17,66 @@ Claude Shield adds a security layer to Claude Code through hooks:
 
 ## Install
 
+### Option 1: Clone (recommended)
+
+```bash
+git clone https://github.com/bifrost-mcp/claude-shield.git ~/.claude/tools/claude-shield
+```
+
+### Option 2: npm
+
 ```bash
 npm install -g claude-shield
 ```
 
-Then add to your Claude Code settings (`~/.claude/settings.json`):
+If using npm, find the install path for the next step:
+
+```bash
+echo "$(npm root -g)/claude-shield"
+```
+
+### Configure Hooks
+
+Add the following to your `~/.claude/settings.json`. If using npm, replace `~/.claude/tools/claude-shield` with the path from the command above.
 
 ```json
 {
-  "plugins": ["claude-shield"]
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/tools/claude-shield/hooks/scripts/pre-tool-blocker.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/tools/claude-shield/hooks/scripts/post-tool-auditor.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
+```
+
+> **Note:** If you already have hooks in your settings.json, merge the arrays — don't replace them. Multiple hooks can coexist under the same event.
+
+### Verify It's Working
+
+Start a Claude Code session and try a destructive command:
+
+```
+You: run rm -rf /tmp/test
+Claude Shield: 🛡️ Blocked: rm -rf is a destructive command
 ```
 
 ## How It Works
@@ -33,6 +86,7 @@ Then add to your Claude Code settings (`~/.claude/settings.json`):
 Intercepts every tool call before execution. If a destructive command or protected file write is detected, the hook returns `{"permissionDecision": "deny"}` with a reason, preventing Claude Code from executing the action.
 
 **Blocked commands include:**
+
 | Pattern | Example |
 |---------|---------|
 | `rm -rf` | `rm -rf /`, `rm -Rf ./src` |
@@ -45,6 +99,7 @@ Intercepts every tool call before execution. If a destructive command or protect
 | `git push --force` to main/master | `git push --force origin main` |
 
 **Protected files include:**
+
 `.env`, `.env.*`, `credentials.*`, `*.pem`, `*.key`, `id_rsa`, `id_ed25519`, `.npmrc`, `.pypirc`, `secrets.*`, `*.keystore`
 
 ### PostToolUse Hook — Audit Logger
@@ -104,10 +159,13 @@ All data is stored locally in `~/.claude-shield/`:
 | `audit.db` | SQLite database — blocked attempts + audit log |
 | `config.json` | Protection settings and custom rules |
 
+No data is sent anywhere. Everything stays on your machine.
+
 ## Requirements
 
+- Claude Code (with hooks support)
 - `bash` 3.2+ (ships with macOS)
-- `jq` (install: `brew install jq` on macOS, `apt install jq` on Linux)
+- `jq` (`brew install jq` on macOS, `apt install jq` on Linux)
 - `sqlite3` (pre-installed on macOS and most Linux distributions)
 
 If `jq` or `sqlite3` are missing, Claude Shield will silently disable itself rather than break Claude Code.

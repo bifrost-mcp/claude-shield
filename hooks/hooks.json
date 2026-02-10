@@ -2,22 +2,22 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "*",
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-blocker.sh"
+            "command": "bash <INSTALL_PATH>/hooks/scripts/pre-tool-blocker.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "*",
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-auditor.sh"
+            "command": "bash <INSTALL_PATH>/hooks/scripts/post-tool-auditor.sh"
           }
         ]
       }
